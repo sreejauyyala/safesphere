@@ -11,6 +11,13 @@ from app.schemas.guardian import (
     GuardianVerifyOTPRequest,
     GuardianResponse,
 )
+from app.schemas.journey import (
+    JourneyCreateRequest,
+    JourneyLocationUpdateRequest,
+    JourneyLocationPointResponse,
+    JourneyResponse as Step4JourneyResponse,
+    JourneySummaryResponse,
+)
 from app.schemas.entities import (
     UserBase, UserCreate, UserResponse,
     GuardianBase, GuardianCreate,
@@ -48,6 +55,10 @@ __all__ = [
     "SafetyReportResponse",
     "SafetyPulseQuery",
     "SafetyPulseResponse",
+    "JourneyCreateRequest",
+    "JourneyLocationUpdateRequest",
+    "JourneyLocationPointResponse",
+    "JourneySummaryResponse",
     "JourneyCreate",
     "JourneyResponse",
     "SOSSignalCreate",

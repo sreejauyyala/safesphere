@@ -173,6 +173,62 @@ class ApiService {
     const res = await this.client.post('/journeys/route-recommendation');
     return res.data;
   }
+
+  // --- Step 4: Journey & Live Tracking Endpoints ---
+  async createJourney(data: {
+    destination_name: string;
+    title?: string;
+    start_latitude: number;
+    start_longitude: number;
+    destination_latitude?: number | null;
+    destination_longitude?: number | null;
+  }): Promise<any> {
+    const res = await this.client.post('/journeys', data);
+    return res.data;
+  }
+
+  async getActiveJourney(): Promise<any | null> {
+    const res = await this.client.get('/journeys/active');
+    return res.data;
+  }
+
+  async getUserJourneys(): Promise<any[]> {
+    const res = await this.client.get('/journeys');
+    return res.data || [];
+  }
+
+  async getJourneyById(journeyId: string): Promise<any> {
+    const res = await this.client.get(`/journeys/${journeyId}`);
+    return res.data;
+  }
+
+  async recordJourneyLocation(
+    journeyId: string,
+    data: { latitude: number; longitude: number; accuracy?: number | null; timestamp?: string }
+  ): Promise<any> {
+    const res = await this.client.post(`/journeys/${journeyId}/location`, data);
+    return res.data;
+  }
+
+  async pauseJourney(journeyId: string): Promise<any> {
+    const res = await this.client.post(`/journeys/${journeyId}/pause`);
+    return res.data;
+  }
+
+  async resumeJourney(journeyId: string): Promise<any> {
+    const res = await this.client.post(`/journeys/${journeyId}/resume`);
+    return res.data;
+  }
+
+  async endJourney(journeyId: string): Promise<any> {
+    const res = await this.client.post(`/journeys/${journeyId}/end`);
+    return res.data;
+  }
+
+  async getJourneyLocationPoints(journeyId: string): Promise<any[]> {
+    const res = await this.client.get(`/journeys/${journeyId}/locations`);
+    return res.data || [];
+  }
 }
 
 export const apiService = new ApiService();

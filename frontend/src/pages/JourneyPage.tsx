@@ -1,33 +1,73 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Navigation, Clock, ShieldCheck, Play, ArrowLeft } from 'lucide-react';
+import { Navigation, Plus, ArrowLeft, RefreshCw, Route } from 'lucide-react';
+import type { Journey, JourneySummary } from '../types';
 import apiService from '../services/api';
+import { useLocation } from '../contexts/LocationContext';
+import ActiveJourneyCard from '../components/journey/ActiveJourneyCard';
+import JourneySetupModal from '../components/journey/JourneySetupModal';
+import JourneySummaryModal from '../components/journey/JourneySummaryModal';
+import JourneyHistoryList from '../components/journey/JourneyHistoryList';
 
 export const JourneyPage: React.FC = () => {
   const navigate = useNavigate();
-  const [origin, setOrigin] = useState('Current GPS Location');
-  const [destination, setDestination] = useState('');
-  const [routeInfo, setRouteInfo] = useState<any>(null);
-  const [isLoadingRoute, setIsLoadingRoute] = useState(false);
+  const { startLocationTracking, stopLocationTracking } = useLocation();
 
-  const handleFetchRoute = async () => {
-    setIsLoadingRoute(true);
+  const [activeJourney, setActiveJourney] = useState<Journey | null>(null);
+  const [historyJourneys, setHistoryJourneys] = useState<Journey[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isSetupOpen, setIsSetupOpen] = useState(false);
+  const [completedSummary, setCompletedSummary] = useState<JourneySummary | null>(null);
+
+  const fetchJourneysData = useCallback(async () => {
+    setLoading(true);
     try {
-      const res = await apiService.getSafeRouteRecommendation();
-      setRouteInfo(res.route);
-    } catch {
-      setRouteInfo({
-        distance_meters: 1250,
-        duration_seconds: 900,
-        safety_rating: 'High (Well-Lit Route)',
-      });
+      const [active, history] = await Promise.all([
+        apiService.getActiveJourney(),
+        apiService.getUserJourneys(),
+      ]);
+
+      if (active) {
+        setActiveJourney(active);
+        // Ensure live tracking is connected if status is ACTIVE
+        if (active.status === 'ACTIVE') {
+          startLocationTracking(active.id);
+        }
+      } else {
+        setActiveJourney(null);
+      }
+
+      setHistoryJourneys(history || []);
+    } catch (err) {
+      console.error('Error fetching journeys:', err);
     } finally {
-      setIsLoadingRoute(false);
+      setLoading(false);
     }
+  }, [startLocationTracking]);
+
+  useEffect(() => {
+    fetchJourneysData();
+  }, [fetchJourneysData]);
+
+  const handleJourneyStarted = (newJourney: Journey) => {
+    setActiveJourney(newJourney);
+    setHistoryJourneys((prev) => [newJourney, ...prev.filter((j) => j.id !== newJourney.id)]);
+  };
+
+  const handleJourneyUpdated = (updated: Journey) => {
+    setActiveJourney(updated);
+    setHistoryJourneys((prev) => prev.map((j) => (j.id === updated.id ? updated : j)));
+  };
+
+  const handleJourneyEnded = (summary: JourneySummary) => {
+    stopLocationTracking();
+    setActiveJourney(null);
+    setCompletedSummary(summary);
+    fetchJourneysData();
   };
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
+    <div className="max-w-3xl mx-auto space-y-6">
       {/* Back button */}
       <div>
         <button
@@ -40,66 +80,104 @@ export const JourneyPage: React.FC = () => {
         </button>
       </div>
 
-      <div>
-        <h1 className="text-2xl font-bold text-slate-100 flex items-center gap-2">
-          <Navigation className="w-6 h-6 text-indigo-400" />
-          Monitored Safe Journey
-        </h1>
-        <p className="text-xs text-slate-400 mt-1">
-          Plan trips with safety-aware routing, automated check-in deadlines, and deviation alerts for loved ones.
-        </p>
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-100 flex items-center gap-2">
+            <Navigation className="w-6 h-6 text-blue-500" />
+            Live Journey Tracking
+          </h1>
+          <p className="text-xs text-slate-400 mt-1">
+            Real-time GPS breadcrumbs, travel distance telemetry, and journey history.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={fetchJourneysData}
+            className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-white transition"
+            title="Refresh"
+          >
+            <RefreshCw className="w-4 h-4" />
+          </button>
+
+          {!activeJourney && (
+            <button
+              type="button"
+              onClick={() => setIsSetupOpen(true)}
+              className="py-2.5 px-4 rounded-xl font-semibold bg-blue-600 hover:bg-blue-500 text-white text-xs flex items-center gap-2 transition shadow-lg shadow-blue-600/20"
+            >
+              <Plus className="w-4 h-4" />
+              Start New Journey
+            </button>
+          )}
+        </div>
       </div>
 
-      <div className="p-6 rounded-2xl glass-card border border-slate-800 space-y-4">
-        <div>
-          <label className="block text-xs font-medium text-slate-300 mb-1">Starting Point</label>
-          <input
-            type="text"
-            value={origin}
-            onChange={(e) => setOrigin(e.target.value)}
-            className="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-100 text-sm focus:outline-none"
+      {/* Active Journey Section */}
+      {activeJourney && (
+        <section className="space-y-2">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+            Active Journey
+          </h2>
+          <ActiveJourneyCard
+            journey={activeJourney}
+            onJourneyUpdated={handleJourneyUpdated}
+            onJourneyEnded={handleJourneyEnded}
           />
-        </div>
+        </section>
+      )}
 
-        <div>
-          <label className="block text-xs font-medium text-slate-300 mb-1">Destination Address / Campus Building</label>
-          <input
-            type="text"
-            value={destination}
-            onChange={(e) => setDestination(e.target.value)}
-            placeholder="e.g. Metro Station, Tech Park Block B, Dormitory"
-            className="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-100 text-sm focus:outline-none focus:border-indigo-500"
-          />
-        </div>
-
-        <button
-          type="button"
-          onClick={handleFetchRoute}
-          disabled={isLoadingRoute}
-          className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-sm flex items-center justify-center gap-2 transition-all"
-        >
-          <Play className="w-4 h-4" />
-          <span>{isLoadingRoute ? 'Calculating Safe Path...' : 'Find Safest Route'}</span>
-        </button>
-
-        {routeInfo && (
-          <div className="mt-4 p-4 rounded-xl bg-slate-900/90 border border-indigo-500/30 space-y-2">
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-indigo-400 font-semibold flex items-center gap-1">
-                <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                {routeInfo.safety_rating || 'Safety Optimized'}
-              </span>
-              <span className="text-slate-400 flex items-center gap-1">
-                <Clock className="w-3.5 h-3.5" />
-                ~{Math.round(routeInfo.duration_seconds / 60)} mins ({routeInfo.distance_meters}m)
-              </span>
-            </div>
-            <p className="text-xs text-slate-400">
-              Provider Abstraction: OpenStreetMap / Routing Service Adapter
+      {/* If No Active Journey, Show Start Journey Prompt */}
+      {!activeJourney && !loading && (
+        <div className="p-8 rounded-3xl bg-slate-900/40 border border-dashed border-slate-800 text-center space-y-4">
+          <div className="w-12 h-12 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-400 mx-auto flex items-center justify-center">
+            <Route className="w-6 h-6" />
+          </div>
+          <div>
+            <h3 className="text-base font-bold text-white">No Journey Currently Active</h3>
+            <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
+              Start a monitored journey to log GPS breadcrumbs, track elapsed travel time, and save your route history.
             </p>
           </div>
-        )}
-      </div>
+          <button
+            type="button"
+            onClick={() => setIsSetupOpen(true)}
+            className="py-3 px-6 rounded-xl font-semibold bg-blue-600 hover:bg-blue-500 text-white text-sm inline-flex items-center gap-2 transition shadow-lg shadow-blue-600/30"
+          >
+            <Navigation className="w-4 h-4" />
+            Start Journey Now
+          </button>
+        </div>
+      )}
+
+      {/* Previous Journeys (History) */}
+      <section className="space-y-3 pt-2">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+            Journey History ({historyJourneys.filter((j) => j.status === 'COMPLETED').length})
+          </h2>
+        </div>
+
+        <JourneyHistoryList
+          journeys={historyJourneys.filter((j) => j.status === 'COMPLETED')}
+          loading={loading}
+        />
+      </section>
+
+      {/* Setup Modal */}
+      <JourneySetupModal
+        isOpen={isSetupOpen}
+        onClose={() => setIsSetupOpen(false)}
+        onJourneyStarted={handleJourneyStarted}
+      />
+
+      {/* Completion Summary Modal */}
+      <JourneySummaryModal
+        summary={completedSummary}
+        onClose={() => setCompletedSummary(null)}
+      />
     </div>
   );
 };

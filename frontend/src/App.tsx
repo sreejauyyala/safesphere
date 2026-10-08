@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import RootLayout from './layouts/RootLayout';
 import { AuthProvider } from './contexts/AuthContext';
+import { LocationProvider } from './contexts/LocationContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
@@ -22,8 +23,9 @@ export const App: React.FC = () => {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <Routes>
-          <Route element={<RootLayout />}>
+        <LocationProvider>
+          <Routes>
+            <Route element={<RootLayout />}>
             {/* Public Routes */}
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<LoginPage />} />
@@ -118,9 +120,10 @@ export const App: React.FC = () => {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>
-      </AuthProvider>
-    </BrowserRouter>
-  );
+      </LocationProvider>
+    </AuthProvider>
+  </BrowserRouter>
+);
 };
 
 export default App;

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Map, MapPin, ShieldAlert, Sparkles, ArrowRight } from 'lucide-react';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
+import { useLocation } from '../../contexts/LocationContext';
 
 export interface MapMarkerPreview {
   id: string;
@@ -30,6 +31,10 @@ export const SafeMapPreview: React.FC<SafeMapPreviewProps> = ({
   className = '',
 }) => {
   const navigate = useNavigate();
+  const { currentLocation } = useLocation();
+
+  const effectiveLat = userLocation?.lat ?? currentLocation?.latitude;
+  const effectiveLng = userLocation?.lng ?? currentLocation?.longitude;
 
   const handleOpen = () => {
     if (onOpenMap) {
@@ -89,7 +94,7 @@ export const SafeMapPreview: React.FC<SafeMapPreviewProps> = ({
             <MapPin className="w-4 h-4 text-rose-400" />
           </div>
           <span className="text-[10px] font-bold text-slate-200 mt-1 px-2 py-0.5 rounded-full bg-slate-900/90 border border-slate-800">
-            {userLocation ? `${userLocation.lat.toFixed(3)}, ${userLocation.lng.toFixed(3)}` : 'Your Approximate Sector'}
+            {effectiveLat && effectiveLng ? `${effectiveLat.toFixed(3)}, ${effectiveLng.toFixed(3)}` : 'Your Approximate Sector'}
           </span>
         </div>
 

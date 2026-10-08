@@ -115,3 +115,61 @@ export interface RouteData {
   duration_seconds?: number;
   is_safety_optimized?: boolean;
 }
+
+export interface LocationCoordinates {
+  latitude: number;
+  longitude: number;
+  accuracy?: number | null;
+  timestamp: number;
+}
+
+export type GeolocationPermissionState = 'prompt' | 'granted' | 'denied' | 'unavailable';
+
+export type JourneyStatus = 'PLANNED' | 'ACTIVE' | 'PAUSED' | 'COMPLETED' | 'CANCELLED';
+
+export interface Journey {
+  id: string;
+  user_id: string;
+  destination_name: string;
+  title: string;
+  start_latitude: number;
+  start_longitude: number;
+  destination_latitude?: number | null;
+  destination_longitude?: number | null;
+  status: JourneyStatus;
+  started_at: string;
+  ended_at?: string | null;
+  last_latitude?: number | null;
+  last_longitude?: number | null;
+  last_location_update?: string | null;
+  distance_travelled: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface JourneyLocationPoint {
+  id: string;
+  journey_id: string;
+  latitude: number;
+  longitude: number;
+  accuracy?: number | null;
+  timestamp: string;
+}
+
+export interface JourneyCreatePayload {
+  destination_name: string;
+  title?: string;
+  start_latitude: number;
+  start_longitude: number;
+  destination_latitude?: number;
+  destination_longitude?: number;
+}
+
+export interface JourneySummary {
+  id: string;
+  destination_name: string;
+  status: string;
+  duration_minutes: number;
+  distance_travelled: number;
+  points_recorded: number;
+}

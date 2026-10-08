@@ -1,11 +1,12 @@
 # SafeSphere: 24/7 Community Safety Intelligence Network
 
 > **Note on Project Status:**  
-> **STEP 1, STEP 2 & STEP 3 COMPLETED.**  
+> **STEP 1, STEP 2, STEP 3 & STEP 4 COMPLETED.**  
 > Step 1 established the foundation architecture, database models, and route scaffolds.  
 > Step 2 delivered complete Firebase Authentication, PostgreSQL User Profiles with automatic DOB age detection, Minor Safeguarding, and Guardian Connect OTP Verification.  
-> Step 3 delivers the complete Home Dashboard, AppShell Navigation, Mobile Bottom Navigation, Reusable Component Library, and Responsive UI layout.  
-> Subsequent modules (live GPS tracking, Safety Pulse calculations, Google Gemini AI, route recommendations, and SOS dispatch) will be integrated into this UI in future phases.
+> Step 3 delivered the complete Home Dashboard, AppShell Navigation, Mobile Bottom Navigation, Reusable Component Library, and Responsive UI layout.  
+> Step 4 delivers real-time Geolocation Permission handling, GPS location services, live journey creation, active journey monitoring with pause/resume/end lifecycle, breadcrumb logging, and route history visualization.  
+> Subsequent modules (Safety Pulse calculations, Google Gemini AI, route recommendations, and SOS dispatch) will be integrated in future phases.
 
 ---
 
@@ -313,21 +314,118 @@ Step 3 delivers a modern, mobile-first design system and dashboard architecture:
 
 ---
 
-## 10. How Step 4 Connects to this UI
+---
 
-In Step 4 (Safety Pulse & Hotspot Computation Engine):
-1. **`SafetyPulseCard` Integration:** Replace the static `-- / 100` and `status: "Calculating..."` with live territory scores fetched from the backend (`GET /api/v1/pulse/current`). The radial pulse ring will reflect `safe` (emerald >= 75), `moderate` (amber 50-74), and `danger` (rose < 50).
-2. **`SafetyInsightCard` Integration:** Replace the mock insights array in `frontend/src/mock/demoData.ts` with real-time hazard clusters aggregated from the database.
-3. **Geo-Location Sync:** Step 5 GPS telemetry will feed coordinates directly into `LocationCard`'s `onEnableLocation` hook to update the territorial bounding box dynamically.
+## 10. Step 4 — Live GPS Location & Journey Tracking
+
+Step 4 integrates real-time GPS telemetry, user-controlled location permissions, active journey tracking, and route history visualization without third-party vendor lock-in.
+
+### 10.1 Key Architecture & Features
+1. **Explicit Location Permission Handling:**
+   - Handled via HTML5 Geolocation API with user confirmation modal.
+   - Distinct handling for Permission Granted, Permission Denied, GPS Unavailable, and Timeout.
+   - Privacy guarantee clearly documented in UI:
+     > *"SafeSphere only tracks live location when the user explicitly starts an active tracking experience such as Journey Tracking. Location is not publicly shared by default."*
+2. **Current Location Service (`locationService.ts`):**
+   - Clean promise-based `getCurrentLocation()` returning `{ latitude, longitude, accuracy, timestamp }`.
+   - Continuous foreground watcher `watchLocation()` and `stopWatchingLocation()`.
+   - Never hard-codes coordinates.
+3. **Reusable Location State (`LocationContext.tsx`):**
+   - Exposes `currentLocation`, `accuracy`, `isLocationEnabled`, `permissionStatus`, `isTracking`, `error`, `startLocationTracking()`, and `stopLocationTracking()`.
+   - Connected across Home Dashboard, Map page, and Journey page.
+4. **Home Dashboard Integration:**
+   - Replaced placeholder LocationCard with real GPS telemetry: detected coordinates, accuracy (±m), status indicator (🟢 Location Active / 🟡 Permission Required), and `[View on Map]` action.
+5. **Interactive Map Component (`Map.tsx` & `MapPage.tsx`):**
+   - Leaflet & OpenStreetMap integration with user location pin and accuracy circle (`L.circle`).
+   - Follow-me toggle and one-touch Recenter button.
+   - Prepared for upcoming safety layers (`safetyMarkers`, `helpPoints`, `safetyZones`).
+6. **Journey Tracking System:**
+   - **Start Journey:** User enters destination and optional label (Home, College, Office, Other). If under 18, shows informational message about Guardian Connect.
+   - **Single Active Journey Enforcement:** Backend enforces HTTP 409 Conflict if an active/paused journey already exists. Frontend displays *Continue Journey* and *End Journey* options.
+   - **Active Journey Screen (`ActiveJourneyCard.tsx`):** Live elapsed timer, cumulative distance travelled, started timestamp, and controls (`[Open Map]`, `[Pause Tracking]`, `[End Journey]`).
+   - **Pause & Resume Tracking:** Pausing stops breadcrumb transmission to the database. Resuming reactivates GPS logging.
+   - **End Journey & Summary:** Requires confirmation modal. Finalizes status to `COMPLETED`, records duration and final distance, and displays `JourneySummaryModal` (`[Done]`).
+   - **Distance Calculation:** Server calculates cumulative movement using the Haversine great-circle formula, automatically filtering out micro-jitter (< 3m).
+   - **Journey History (`JourneyHistoryList.tsx`):** Displays previous trips. Clicking any journey opens its route path with recorded breadcrumb points rendered directly on the map.
+
+### 10.2 Database Models
+- **`Journey` (`journeys` table):**
+  - `id`: UUID (Primary Key)
+  - `user_id`: UUID (Foreign Key -> `users.id`)
+  - `destination_name`: String(200)
+  - `title`: String(150)
+  - `start_latitude`, `start_longitude`: Float
+  - `destination_latitude`, `destination_longitude`: Float (Optional)
+  - `status`: String (`PLANNED`, `ACTIVE`, `PAUSED`, `COMPLETED`, `CANCELLED`)
+  - `started_at`, `ended_at`: DateTime (UTC)
+  - `last_latitude`, `last_longitude`: Float
+  - `last_location_update`: DateTime (UTC)
+  - `distance_travelled`: Float (in km)
+- **`JourneyLocationPoint` (`journey_location_points` table):**
+  - `id`: UUID (Primary Key)
+  - `journey_id`: UUID (Foreign Key -> `journeys.id`, CASCADE)
+  - `latitude`, `longitude`: Float
+  - `accuracy`: Float (Optional)
+  - `timestamp`: DateTime (UTC)
+
+### 10.3 Backend REST APIs
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/api/v1/journeys` | Start a new journey (returns `409 Conflict` if one is already active) |
+| `GET` | `/api/v1/journeys` | Retrieve user's journey history |
+| `GET` | `/api/v1/journeys/active` | Retrieve currently active or paused journey (`null` if none) |
+| `GET` | `/api/v1/journeys/{id}` | Retrieve specific journey details (ownership verified) |
+| `POST` | `/api/v1/journeys/{id}/location` | Append live GPS breadcrumb & calculate Haversine distance |
+| `POST` | `/api/v1/journeys/{id}/pause` | Pause location tracking |
+| `POST` | `/api/v1/journeys/{id}/resume` | Resume location tracking |
+| `POST` | `/api/v1/journeys/{id}/end` | End journey and calculate duration & summary stats |
+| `GET` | `/api/v1/journeys/{id}/locations` | Fetch recorded GPS points for route path display |
+
+### 10.4 Location Update Strategy & Performance
+- **Movement-based Throttle:** Client checks for significant movement (>= 5 meters) or minimum periodic elapsed time (>= 15 seconds) before transmitting points to `/api/v1/journeys/{id}/location`.
+- **Database Write Optimization:** Server ignores sub-3m GPS jitter when accumulating distance.
+- **Offline Resilience:** If network is temporarily disconnected, local GPS state is kept in memory without interrupting map navigation or crashing the UI.
+
+### 10.5 Privacy & Security Measures
+- **Strict Ownership Isolation:** All journey endpoints enforce `journey.user_id == current_user.id`. Requests from other users return `403 Forbidden`.
+- **No Background Tracking When Idle:** Geolocation watcher is stopped immediately when a journey ends or when tracking is paused.
+- **No Public GPS Broadcasts:** Coordinates are private to the user and never exposed on public or unauthenticated endpoints.
+
+### 10.6 Testing & Verification
+- **Backend Test Suite (`test_step4_journey_location.py`):**
+  - Complete lifecycle: creation, breadcrumb appending, distance calculation, pause/resume, and finalization.
+  - Multi-active journey conflict handling (`409 Conflict`).
+  - Privacy and cross-tenant access isolation (`403 Forbidden`).
+  - Rejection of breadcrumbs on completed or paused journeys (`400 Bad Request`).
+  - All 31 backend pytest tests passing (100%).
+- **Frontend Verification:**
+  - TypeScript build (`tsc -b && vite build`) passing with 0 errors.
 
 ---
 
-## 11. Roadmap / Future Steps
-- **Step 4:** Real-time Safety Pulse engine and dynamic hotspot calculation.
-- **Step 5:** Live GPS tracking, geolocation background polling, and device breadcrumbs.
-- **Step 6:** Safety-aware route recommendation with streetlight density & hazard avoidance algorithms.
-- **Step 7:** Multi-modal citizen reporting (Text, Speech-to-Text voice notes, Photo uploads with EXIF verification).
-- **Step 8:** One-Touch SOS, emergency SMS/WhatsApp dispatch, and automated panic triggers.
-- **Step 9:** Full Google Gemini AI integration (hazard classification, fake-report filtering, image analysis).
-- **Step 10:** Guardian Protection automated check-ins and delayed-arrival notifications.
-- **Step 11:** Admin & Municipal dashboard with issue resolution workflow and civic hazard dispatch.
+## 11. How Step 5 Should Connect to this Architecture
+
+In Step 5 (Safety Pulse & Territorial Risk Intelligence):
+1. **Connect User Coordinates to Safety Pulse:**
+   - Pass `currentLocation.latitude` and `currentLocation.longitude` from `LocationContext` to `GET /api/v1/safety-pulse/current`.
+   - Update `SafetyPulseCard` on the dashboard to reflect real computed territorial danger scores (0-100) based on verified incidents nearby.
+2. **Overlay Risk Zones on SafeMap:**
+   - Supply the `safetyZones` and `safetyMarkers` props prepared in `Map.tsx` and `MapPage.tsx` with dynamic polygon layers from the Safety Pulse calculation engine.
+3. **Active Journey Risk Warnings:**
+   - As `currentLocation` updates during an active journey, query nearby hazard proximity and trigger proactive in-journey alerts if entering an elevated-risk territory.
+
+---
+
+## 12. Roadmap / Future Steps
+- **Step 1:** Foundation & Architecture (COMPLETED)
+- **Step 2:** Authentication, User Profile & Guardian Connect (COMPLETED)
+- **Step 3:** Home Dashboard, Navigation & Responsive UI (COMPLETED)
+- **Step 4:** Live GPS Location & Journey Tracking (COMPLETED)
+- **Step 5:** Safety Pulse calculation & territory risk scoring
+- **Step 6:** Safety-aware route recommendation with streetlight density & hazard avoidance
+- **Step 7:** Multi-modal citizen reporting (Text, Voice speech-to-text, Photo uploads)
+- **Step 8:** One-Touch SOS, emergency SMS/WhatsApp dispatch, and automated panic triggers
+- **Step 9:** Google Gemini AI integration (hazard classification, fake-report filtering, image analysis)
+- **Step 10:** Guardian Protection automated check-ins and delayed-arrival notifications
+- **Step 11:** Community reporting verification & resolution workflow
+- **Step 12:** Organization & Municipal Admin dashboard
