@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
-import { Users, UserPlus, Phone, ShieldCheck } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Users, UserPlus, Phone, ShieldCheck, ArrowLeft } from 'lucide-react';
 import type { TrustedContact } from '../types';
 
 export const TrustedCirclePage: React.FC = () => {
+  const navigate = useNavigate();
   const [contacts] = useState<TrustedContact[]>([
     {
       id: 'tc-1',
@@ -24,6 +26,17 @@ export const TrustedCirclePage: React.FC = () => {
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
+      {/* Back button */}
+      <div>
+        <button
+          type="button"
+          onClick={() => navigate('/home')}
+          className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-white transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          <span>Back to Home Dashboard</span>
+        </button>
+      </div>
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-100 flex items-center gap-2">

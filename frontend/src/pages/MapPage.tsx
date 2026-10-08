@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Map from '../components/Map';
 import type { MapMarkerData, RouteData } from '../types';
-import { MapPin, Eye } from 'lucide-react';
+import { MapPin, Eye, ArrowLeft } from 'lucide-react';
 
 export const MapPage: React.FC = () => {
+  const navigate = useNavigate();
   const [centerLat] = useState<number>(12.9716);
   const [centerLng] = useState<number>(77.5946);
   const [selectedMarker, setSelectedMarker] = useState<MapMarkerData | null>(null);
@@ -72,6 +74,18 @@ export const MapPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {/* Back button */}
+      <div>
+        <button
+          type="button"
+          onClick={() => navigate('/home')}
+          className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-white transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          <span>Back to Home Dashboard</span>
+        </button>
+      </div>
+
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>

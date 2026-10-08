@@ -1,10 +1,11 @@
 # SafeSphere: 24/7 Community Safety Intelligence Network
 
 > **Note on Project Status:**  
-> **STEP 1 & STEP 2 COMPLETED.**  
+> **STEP 1, STEP 2 & STEP 3 COMPLETED.**  
 > Step 1 established the foundation architecture, database models, and route scaffolds.  
-> Step 2 delivers complete Firebase Authentication, PostgreSQL User Profiles with automatic DOB age detection, Minor Safeguarding, and Guardian Connect OTP Verification.  
-> Subsequent modules (live location, Google Gemini AI, route recommendations, SOS, and admin dashboards) will be implemented in future phases.
+> Step 2 delivered complete Firebase Authentication, PostgreSQL User Profiles with automatic DOB age detection, Minor Safeguarding, and Guardian Connect OTP Verification.  
+> Step 3 delivers the complete Home Dashboard, AppShell Navigation, Mobile Bottom Navigation, Reusable Component Library, and Responsive UI layout.  
+> Subsequent modules (live GPS tracking, Safety Pulse calculations, Google Gemini AI, route recommendations, and SOS dispatch) will be integrated into this UI in future phases.
 
 ---
 
@@ -266,13 +267,67 @@ Ensures zero TypeScript compilation errors or broken imports.
 
 ---
 
-## 9. Next Steps (Step 3 and Beyond)
-*Do not implement these in Step 2:*
-- **Step 3:** Live GPS Tracking, Geolocation Polling, and Breadcrumb Trails
-- **Step 4:** Real-time Safety Pulse & Hotspot Computation Engine
-- **Step 5:** Safety-Aware Route Recommendations with Streetlight Density
-- **Step 6:** Multi-Modal Incident Reporting (Text, Voice Notes, Photo Verification)
-- **Step 7:** One-Touch Emergency SOS & Panic Dispatch
-- **Step 8:** Google Gemini Multi-Modal AI Analysis & Hazard Classification
-- **Step 9:** Guardian Protection automated check-ins and delayed-arrival notifications
-- **Step 10:** Admin & Municipal Civic Dashboard
+## 9. Step 3 — SafeSphere Home Dashboard, Navigation & Responsive UI
+
+Step 3 delivers a modern, mobile-first design system and dashboard architecture:
+
+### 9.1 Layout Architecture (`AppShell`)
+- **Desktop (>= 768px):** Sticky Top Header with search bar, notifications, and user avatar profile menu. Fixed left Sidebar with core network navigation links, status indicators, and an emergency SOS dispatch trigger.
+- **Mobile (< 768px):** Compact top bar, touch-friendly bottom navigation bar (`Home`, `Map`, `Report`, `Journey`, `More`), and a smooth slide-out drawer for extended modules without horizontal scrolling.
+
+### 9.2 Reusable Component Library
+- **UI Primitives (`components/ui/`):**
+  - `Button`: Accessible variants (`primary`, `secondary`, `danger`, `outline`, `ghost`), loading spinners, and focus rings.
+  - `Card`: Glassmorphism containers with optional ambient glows (`glow-rose`, `glow-blue`, `glow-emerald`).
+  - `StatusBadge`: Accessible status indicators communicating through both iconography and text (never color alone).
+  - `EmptyState`: Clean dashed fallback state for empty lists and data queries.
+  - `LoadingState`: Animated radar/shield pulse indicating ongoing network processes.
+  - `ErrorState`: Alert box with retry trigger.
+- **Navigation Shell (`components/navigation/`):**
+  - `Header`: Global search bar (`/` shortcut), unread notification badge, avatar menu toggle.
+  - `Sidebar`: Full navigation links, minor protection tags, and emergency trigger.
+  - `MobileNavigation`: Touch-optimized bottom navigation.
+  - `NotificationPanel`: Dropdown panel with category icons, unread filters, and dismissal triggers.
+  - `ProfileMenu`: Dropdown menu linking to Profile, Guardian Connect, Trusted Circle, Feedback, and Logout.
+- **Dashboard Modules (`components/dashboard/`):**
+  - `SafetyPulseCard`: Prominent territorial index card (`-- / 100` Calculating...) ready for Step 4 algorithms.
+  - `QuickActionCard`: 4 rapid 1-touch actions (Start Journey, Report Issue, I Feel Unsafe, Instant SOS).
+  - `LocationCard`: Geo-fence area indicator with callbacks prepared for Step 5 GPS.
+  - `SafeMapPreview`: Embedded radar map preview with interactive zone and marker slots.
+  - `JourneyCard`: Active journey monitor with toggleable idle and monitored travel states.
+  - `SafetyInsightCard`: Localized crowd-sourced notices (lighting, hazards, patrols, havens).
+  - `GuardianCard`: Dynamically presented **only for minor accounts (< 18)**.
+  - `TrustedCircleCard`: Emergency response circle preview.
+  - `RecentActivity`: Activity audit log.
+
+### 9.3 Routes Available in Step 3
+- `/home` &mdash; SafeSphere Home Dashboard
+- `/map` &mdash; Safety Map & Community Telemetry
+- `/report` &mdash; Report Safety Hazard or Incident
+- `/journey` &mdash; Monitored Safe Journey Console
+- `/safety-mode` &mdash; "I Feel Unsafe" Silent Vigilance Protocol
+- `/trusted-circle` &mdash; Emergency Responder Circle
+- `/guardian` &mdash; Guardian Connect Hub
+- `/feedback` &mdash; Community Safety Sentiment & Feedback
+- `/profile` &mdash; User Profile & Account Security
+
+---
+
+## 10. How Step 4 Connects to this UI
+
+In Step 4 (Safety Pulse & Hotspot Computation Engine):
+1. **`SafetyPulseCard` Integration:** Replace the static `-- / 100` and `status: "Calculating..."` with live territory scores fetched from the backend (`GET /api/v1/pulse/current`). The radial pulse ring will reflect `safe` (emerald >= 75), `moderate` (amber 50-74), and `danger` (rose < 50).
+2. **`SafetyInsightCard` Integration:** Replace the mock insights array in `frontend/src/mock/demoData.ts` with real-time hazard clusters aggregated from the database.
+3. **Geo-Location Sync:** Step 5 GPS telemetry will feed coordinates directly into `LocationCard`'s `onEnableLocation` hook to update the territorial bounding box dynamically.
+
+---
+
+## 11. Roadmap / Future Steps
+- **Step 4:** Real-time Safety Pulse engine and dynamic hotspot calculation.
+- **Step 5:** Live GPS tracking, geolocation background polling, and device breadcrumbs.
+- **Step 6:** Safety-aware route recommendation with streetlight density & hazard avoidance algorithms.
+- **Step 7:** Multi-modal citizen reporting (Text, Speech-to-Text voice notes, Photo uploads with EXIF verification).
+- **Step 8:** One-Touch SOS, emergency SMS/WhatsApp dispatch, and automated panic triggers.
+- **Step 9:** Full Google Gemini AI integration (hazard classification, fake-report filtering, image analysis).
+- **Step 10:** Guardian Protection automated check-ins and delayed-arrival notifications.
+- **Step 11:** Admin & Municipal dashboard with issue resolution workflow and civic hazard dispatch.

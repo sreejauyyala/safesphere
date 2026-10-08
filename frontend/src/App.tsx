@@ -15,6 +15,7 @@ import SafetyModePage from './pages/SafetyModePage';
 import TrustedCirclePage from './pages/TrustedCirclePage';
 import GuardianPage from './pages/GuardianPage';
 import ProfilePage from './pages/ProfilePage';
+import FeedbackPage from './pages/FeedbackPage';
 import AdminPage from './pages/AdminPage';
 
 export const App: React.FC = () => {
@@ -93,6 +94,14 @@ export const App: React.FC = () => {
               element={
                 <ProtectedRoute>
                   <TrustedCirclePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/feedback"
+              element={
+                <ProtectedRoute>
+                  <FeedbackPage />
                 </ProtectedRoute>
               }
             />

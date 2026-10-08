@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
-import { AlertTriangle, Mic, Image, FileText, Sparkles, Send } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { AlertTriangle, Mic, Image, FileText, Sparkles, Send, ArrowLeft } from 'lucide-react';
 import apiService from '../services/api';
 
 export const ReportPage: React.FC = () => {
+  const navigate = useNavigate();
   const [reportType, setReportType] = useState<'text' | 'voice' | 'image'>('text');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -30,6 +32,18 @@ export const ReportPage: React.FC = () => {
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
+      {/* Back button */}
+      <div>
+        <button
+          type="button"
+          onClick={() => navigate('/home')}
+          className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-white transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          <span>Back to Home Dashboard</span>
+        </button>
+      </div>
+
       <div>
         <h1 className="text-2xl font-bold text-slate-100 flex items-center gap-2">
           <AlertTriangle className="w-6 h-6 text-rose-500" />

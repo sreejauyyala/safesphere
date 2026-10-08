@@ -1,12 +1,26 @@
 import React, { useState } from 'react';
-import { Flame, Radio, Shield, BellRing, HeartPulse } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Flame, Radio, Shield, BellRing, HeartPulse, ArrowLeft } from 'lucide-react';
 
 export const SafetyModePage: React.FC = () => {
+  const navigate = useNavigate();
   const [isActive, setIsActive] = useState(false);
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6 text-center">
+    <div className="max-w-2xl mx-auto space-y-6">
+      {/* Back button */}
       <div>
+        <button
+          type="button"
+          onClick={() => navigate('/home')}
+          className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-white transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          <span>Back to Home Dashboard</span>
+        </button>
+      </div>
+
+      <div className="text-center">
         <h1 className="text-2xl font-bold text-slate-100 flex items-center justify-center gap-2">
           <Flame className="w-6 h-6 text-amber-500" />
           Safety Pulse & "I Feel Unsafe" Mode
