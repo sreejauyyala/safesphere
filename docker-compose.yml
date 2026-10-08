@@ -1,0 +1,28 @@
+# SafeSphere Local Development Database Configuration
+# NOTE: The credentials below are intended strictly for local development testing.
+# Production environments MUST use strongly generated passwords and secure secret management.
+
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: safesphere_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: safesphere_user
+      POSTGRES_PASSWORD: safesphere_password
+      POSTGRES_DB: safesphere_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - safesphere_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U safesphere_user -d safesphere_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  safesphere_pgdata:
+    driver: local
