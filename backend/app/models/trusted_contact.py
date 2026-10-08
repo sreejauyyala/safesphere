@@ -1,6 +1,5 @@
-from sqlalchemy import Column, String, Boolean, ForeignKey
-from sqlalchemy.orm import relationship
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import Column, String, Boolean, ForeignKey, Uuid
+from sqlalchemy.orm import relationship as orm_relationship
 from app.models.base import TimeStampedUUIDModel
 
 
@@ -10,7 +9,7 @@ class TrustedContact(TimeStampedUUIDModel):
     """
     __tablename__ = "trusted_contacts"
 
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(Uuid(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     name = Column(String(150), nullable=False)
     phone_number = Column(String(30), nullable=False)
     email = Column(String(255), nullable=True)
@@ -19,4 +18,4 @@ class TrustedContact(TimeStampedUUIDModel):
     is_active = Column(Boolean, default=True, nullable=False)
 
     # Relationship
-    user = relationship("User", back_populates="trusted_contacts")
+    user = orm_relationship("User", back_populates="trusted_contacts")

@@ -15,27 +15,42 @@ export interface DetailedHealthStatus extends HealthStatus {
   fcm_configured: boolean;
 }
 
-export interface UserProfile {
+export type UserType = 'Student' | 'Employee' | 'General Public' | 'Other';
+export type UserRole = 'USER' | 'ORGANIZATION_ADMIN' | 'SYSTEM_ADMIN';
+export type GuardianRelationship = 'Parent' | 'Guardian' | 'Mother' | 'Father' | 'Other';
+export type VerificationStatus = 'PENDING' | 'VERIFIED' | 'REJECTED';
+export type ConsentStatus = 'PENDING' | 'ACCEPTED' | 'DECLINED';
+
+export interface GuardianData {
   id: string;
-  email: string;
-  full_name: string;
-  phone_number?: string;
-  age?: number;
-  is_under_18: boolean;
-  role: 'user' | 'guardian' | 'admin' | 'first_responder';
-  organization_id?: string;
-  is_active: boolean;
+  minor_user_id: string;
+  guardian_name: string;
+  guardian_phone: string;
+  guardian_email?: string;
+  relationship: GuardianRelationship;
+  verification_status: VerificationStatus;
+  consent_status: ConsentStatus;
+  created_at: string;
+  updated_at: string;
 }
 
-export interface GuardianContact {
+export interface UserProfile {
   id: string;
-  ward_id: string;
-  guardian_name: string;
-  relationship_type: string;
-  contact_phone: string;
-  contact_email?: string;
-  is_verified: boolean;
-  emergency_alerts_enabled: boolean;
+  firebase_uid: string;
+  full_name: string;
+  email: string;
+  phone: string;
+  date_of_birth: string;
+  age: number;
+  is_minor: boolean;
+  user_type: UserType;
+  role: UserRole;
+  profile_image_url?: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  has_guardian: boolean;
+  guardian?: GuardianData | null;
 }
 
 export interface TrustedContact {

@@ -1,21 +1,26 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   Shield, 
   MapPin, 
   AlertTriangle, 
   Navigation, 
   Users, 
-  UserCheck, 
-  User, 
+  HeartHandshake, 
   LayoutDashboard, 
   Flame,
-  Radio
+  Radio,
+  LogOut,
+  ShieldAlert
 } from 'lucide-react';
 import apiService from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
 
 export const Navbar: React.FC = () => {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { userProfile, isAuthenticated, isMinor, logout } = useAuth();
+
   const [apiOnline, setApiOnline] = useState<boolean | null>(null);
   const [sosTriggered, setSosTriggered] = useState<boolean>(false);
 
@@ -31,11 +36,16 @@ export const Navbar: React.FC = () => {
       setSosTriggered(true);
       await apiService.triggerSOS();
       alert('⚠️ SOS Signal Dispatched! (Foundation test trigger verified with backend)');
-    } catch (e) {
+    } catch {
       alert('SOS triggered locally. Check backend connectivity.');
     } finally {
       setTimeout(() => setSosTriggered(false), 3000);
     }
+  };
+
+  const handleSignOut = async () => {
+    await logout();
+    navigate('/login');
   };
 
   const navLinks = [
@@ -45,7 +55,7 @@ export const Navbar: React.FC = () => {
     { to: '/journey', label: 'Journey', icon: Navigation },
     { to: '/safety-mode', label: 'Safe Pulse', icon: Flame },
     { to: '/trusted-circle', label: 'Trusted Circle', icon: Users },
-    { to: '/guardian', label: 'Guardian', icon: UserCheck },
+    { to: '/guardian', label: 'Guardian', icon: HeartHandshake },
     { to: '/admin', label: 'Admin', icon: LayoutDashboard },
   ];
 
@@ -90,8 +100,16 @@ export const Navbar: React.FC = () => {
             })}
           </nav>
 
-          {/* Right Action Controls: API Status, Profile, SOS */}
+          {/* Right Action Controls */}
           <div className="flex items-center space-x-3">
+            {/* Minor Safeguard Badge */}
+            {isAuthenticated && isMinor && (
+              <span className="hidden lg:flex items-center gap-1 text-[11px] font-semibold text-purple-300 px-2 py-0.5 rounded-full bg-purple-950/40 border border-purple-800/50">
+                <ShieldAlert className="w-3.5 h-3.5 text-purple-400" />
+                Minor Protection
+              </span>
+            )}
+
             {/* API Health Pill */}
             <div className="hidden sm:flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-slate-900 border border-slate-800">
               <span
@@ -108,20 +126,52 @@ export const Navbar: React.FC = () => {
               </span>
             </div>
 
-            {/* Profile Link */}
-            <Link
-              to="/profile"
-              className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
-              title="Profile"
-            >
-              <User className="w-5 h-5" />
-            </Link>
+            {/* User Profile or Auth Action */}
+            {isAuthenticated ? (
+              <div className="flex items-center space-x-2">
+                <Link
+                  to="/profile"
+                  className="flex items-center space-x-2 p-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 transition-colors"
+                  title="Your Profile"
+                >
+                  <div className="w-6 h-6 rounded-lg bg-gradient-to-tr from-rose-600 to-indigo-600 flex items-center justify-center text-white text-[10px] font-bold">
+                    {userProfile?.full_name ? userProfile.full_name[0].toUpperCase() : 'U'}
+                  </div>
+                  <span className="hidden sm:inline-block text-xs font-medium text-slate-300 pr-1">
+                    {userProfile?.full_name?.split(' ')[0]}
+                  </span>
+                </Link>
+                <button
+                  type="button"
+                  onClick={handleSignOut}
+                  className="p-2 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-slate-800 transition-colors"
+                  title="Sign Out"
+                >
+                  <LogOut className="w-4 h-4" />
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center space-x-2">
+                <Link
+                  to="/login"
+                  className="px-3 py-1.5 text-xs font-medium text-slate-300 hover:text-white transition-colors"
+                >
+                  Sign In
+                </Link>
+                <Link
+                  to="/register"
+                  className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow transition-colors"
+                >
+                  Join
+                </Link>
+              </div>
+            )}
 
             {/* Instant SOS Trigger Button */}
             <button
               id="sos-trigger-btn"
               onClick={handleSosClick}
-              className={`flex items-center space-x-1.5 px-4 py-1.5 rounded-lg font-bold text-xs uppercase tracking-wider text-white shadow-lg transition-all duration-200 ${
+              className={`flex items-center space-x-1.5 px-3.5 py-1.5 rounded-lg font-bold text-xs uppercase tracking-wider text-white shadow-lg transition-all duration-200 ${
                 sosTriggered
                   ? 'bg-red-700 animate-ping'
                   : 'bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 glow-rose'

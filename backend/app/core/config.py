@@ -38,6 +38,17 @@ class Settings(BaseSettings):
     FIREBASE_CREDENTIALS_PATH: str = ""
     FIREBASE_PROJECT_ID: str = "safesphere-app"
 
+    # Guardian OTP / Notification Verification Service
+    OTP_DEV_CODE: str = "123456"
+    OTP_EXPIRY_MINUTES: int = 15
+    SMS_PROVIDER_ACCOUNT_SID: str = ""
+    SMS_PROVIDER_AUTH_TOKEN: str = ""
+    SMS_PROVIDER_FROM_NUMBER: str = ""
+
+    # JWT / Dev token secret
+    JWT_SECRET_KEY: str = "safesphere_dev_secret_key_change_in_production_32char"
+    JWT_ALGORITHM: str = "HS256"
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

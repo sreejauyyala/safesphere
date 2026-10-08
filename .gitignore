@@ -21,6 +21,9 @@ dist/
 dist-ssr/
 build/
 *.egg-info/
+*.db
+*.sqlite
+*.sqlite3
 
 # Environment Variables & Secrets
 .env

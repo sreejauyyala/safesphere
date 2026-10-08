@@ -1,6 +1,5 @@
-from sqlalchemy import Column, String, Float, DateTime, ForeignKey, Boolean
+from sqlalchemy import Column, String, Float, DateTime, ForeignKey, Boolean, Uuid
 from sqlalchemy.orm import relationship
-from sqlalchemy.dialects.postgresql import UUID
 from app.models.base import TimeStampedUUIDModel
 
 
@@ -10,7 +9,7 @@ class Journey(TimeStampedUUIDModel):
     """
     __tablename__ = "journeys"
 
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(Uuid(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     title = Column(String(150), default="Current Journey", nullable=False)
     start_latitude = Column(Float, nullable=False)
     start_longitude = Column(Float, nullable=False)

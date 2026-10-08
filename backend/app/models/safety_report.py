@@ -1,6 +1,5 @@
-from sqlalchemy import Column, String, Float, Text, ForeignKey, Integer
+from sqlalchemy import Column, String, Float, Text, ForeignKey, Integer, Uuid
 from sqlalchemy.orm import relationship
-from sqlalchemy.dialects.postgresql import UUID
 from app.models.base import TimeStampedUUIDModel
 
 
@@ -10,7 +9,7 @@ class SafetyReport(TimeStampedUUIDModel):
     """
     __tablename__ = "safety_reports"
 
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    user_id = Column(Uuid(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     report_type = Column(String(50), default="text", nullable=False)  # text, voice, image
     category = Column(String(100), default="general_safety", nullable=False)  # harassment, poor_lighting, suspicious_activity, hazard
     title = Column(String(200), nullable=False)

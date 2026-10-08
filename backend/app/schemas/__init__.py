@@ -1,7 +1,19 @@
 from app.schemas.health import HealthResponse, DetailedHealthResponse
+from app.schemas.user import (
+    UserRegisterRequest,
+    UserUpdateRequest,
+    UserProfileResponse,
+    GuardianSummaryResponse,
+)
+from app.schemas.guardian import (
+    GuardianCreateRequest,
+    GuardianUpdateRequest,
+    GuardianVerifyOTPRequest,
+    GuardianResponse,
+)
 from app.schemas.entities import (
     UserBase, UserCreate, UserResponse,
-    GuardianBase, GuardianCreate, GuardianResponse,
+    GuardianBase, GuardianCreate,
     TrustedContactBase, TrustedContactCreate, TrustedContactResponse,
     SafetyReportBase, SafetyReportCreate, SafetyReportResponse,
     SafetyPulseQuery, SafetyPulseResponse,
@@ -15,12 +27,19 @@ from app.schemas.entities import (
 __all__ = [
     "HealthResponse",
     "DetailedHealthResponse",
+    "UserRegisterRequest",
+    "UserUpdateRequest",
+    "UserProfileResponse",
+    "GuardianSummaryResponse",
+    "GuardianCreateRequest",
+    "GuardianUpdateRequest",
+    "GuardianVerifyOTPRequest",
+    "GuardianResponse",
     "UserBase",
     "UserCreate",
     "UserResponse",
     "GuardianBase",
     "GuardianCreate",
-    "GuardianResponse",
     "TrustedContactBase",
     "TrustedContactCreate",
     "TrustedContactResponse",
