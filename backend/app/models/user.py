@@ -29,3 +29,4 @@ class User(TimeStampedUUIDModel):
     safety_reports = relationship("SafetyReport", back_populates="reporter")
     journeys = relationship("Journey", back_populates="user")
     feedbacks = relationship("Feedback", back_populates="user")
+    organization_memberships = relationship("OrganizationMembership", back_populates="user", cascade="all, delete-orphan")

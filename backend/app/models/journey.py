@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from sqlalchemy import Column, String, Float, DateTime, ForeignKey, Boolean, Uuid
+from sqlalchemy import Column, String, Float, DateTime, ForeignKey, Boolean, Uuid, Text
 from sqlalchemy.orm import relationship as orm_relationship
 from app.models.base import TimeStampedUUIDModel
 
@@ -7,6 +7,7 @@ from app.models.base import TimeStampedUUIDModel
 class Journey(TimeStampedUUIDModel):
     """
     Journey model tracking user travel routes, live breadcrumbs, and status lifecycle.
+    Includes Step 10 planned safety-aware route metadata and geometry.
     """
     __tablename__ = "journeys"
 
@@ -31,6 +32,16 @@ class Journey(TimeStampedUUIDModel):
 
     distance_travelled = Column(Float, default=0.0, nullable=False)  # in kilometers
     is_safe_mode_active = Column(Boolean, default=False, nullable=False)
+
+    # Step 10: Planned Safety-Aware Route Integration
+    selected_route_id = Column(String(100), nullable=True)
+    route_provider = Column(String(50), nullable=True)
+    route_geometry = Column(Text, nullable=True)  # GeoJSON LineString coordinates as JSON string
+    planned_distance_m = Column(Float, nullable=True)
+    planned_duration_seconds = Column(Float, nullable=True)
+    estimated_risk_level = Column(String(30), nullable=True)  # lower, moderate, elevated, higher, unknown
+    route_data_coverage = Column(Float, nullable=True)  # 0.0 - 1.0
+    route_assessed_at = Column(DateTime(timezone=True), nullable=True)
 
     # Relationships
     user = orm_relationship("User", back_populates="journeys")

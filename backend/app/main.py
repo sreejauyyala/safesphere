@@ -16,18 +16,24 @@ app = FastAPI(
     redoc_url=f"{settings.API_V1_STR}/redoc",
 )
 
-# Set CORS origins
-if settings.BACKEND_CORS_ORIGINS:
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=[str(origin) for origin in settings.BACKEND_CORS_ORIGINS],
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+# Permitted CORS origins for local development and web frontend
+raw_origins = [str(origin).rstrip("/") for origin in settings.BACKEND_CORS_ORIGINS if str(origin).strip() != "*"]
+mandatory_origins = ["http://localhost:5173", "http://127.0.0.1:5173"]
+for origin in mandatory_origins:
+    if origin not in raw_origins:
+        raw_origins.append(origin)
 
 # Request logging middleware
 app.add_middleware(RequestLoggingMiddleware)
+
+# Outermost CORS middleware to intercept requests first and attach headers to all responses
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=raw_origins,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "Accept", "Origin", "X-Requested-With", "*"],
+)
 
 # Mount API v1 router
 app.include_router(api_router, prefix=settings.API_V1_STR)

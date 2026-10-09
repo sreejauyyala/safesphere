@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Route, Clock, Calendar, ChevronRight, CheckCircle2, XCircle, Eye } from 'lucide-react';
 import type { Journey, JourneyLocationPoint } from '../../types';
 import apiService from '../../services/api';
-import Map from '../Map';
+import SafeSphereMap from '../map/SafeSphereMap';
 
 interface JourneyHistoryListProps {
   journeys: Journey[];
@@ -81,9 +81,6 @@ export const JourneyHistoryList: React.FC<JourneyHistoryListProps> = ({
       </div>
     );
   }
-
-  // Convert route points to Leaflet waypoints format [[lat, lng], ...]
-  const polylineWaypoints: [number, number][] = routePoints.map((p) => [p.latitude, p.longitude]);
 
   return (
     <>
@@ -213,52 +210,16 @@ export const JourneyHistoryList: React.FC<JourneyHistoryListProps> = ({
                   Loading recorded path...
                 </div>
               ) : (
-                <Map
-                  latitude={selectedJourney.start_latitude}
-                  longitude={selectedJourney.start_longitude}
+                <SafeSphereMap
+                  activeJourney={selectedJourney}
+                  recordedJourneyPoints={routePoints}
+                  center={[selectedJourney.start_latitude, selectedJourney.start_longitude]}
                   zoom={14}
                   className="h-64 w-full rounded-2xl"
-                  showCurrentLocation={false}
-                  routes={
-                    polylineWaypoints.length > 0
-                      ? [
-                          {
-                            origin: {
-                              lat: selectedJourney.start_latitude,
-                              lng: selectedJourney.start_longitude,
-                            },
-                            destination: {
-                              lat: selectedJourney.last_latitude || selectedJourney.start_latitude,
-                              lng: selectedJourney.last_longitude || selectedJourney.start_longitude,
-                            },
-                            waypoints: polylineWaypoints,
-                            is_safety_optimized: true,
-                          },
-                        ]
-                      : []
-                  }
-                  markers={[
-                    {
-                      id: 'start-marker',
-                      latitude: selectedJourney.start_latitude,
-                      longitude: selectedJourney.start_longitude,
-                      title: 'Start Location',
-                      description: 'Journey commenced here',
-                      type: 'checkpoint',
-                    },
-                    ...(selectedJourney.last_latitude && selectedJourney.last_longitude
-                      ? [
-                          {
-                            id: 'end-marker',
-                            latitude: selectedJourney.last_latitude,
-                            longitude: selectedJourney.last_longitude,
-                            title: `Destination: ${selectedJourney.destination_name}`,
-                            description: 'Final recorded GPS coordinate',
-                            type: 'checkpoint' as const,
-                          },
-                        ]
-                      : []),
-                  ]}
+                  showUserLocation={false}
+                  showReports={false}
+                  showHelpPoints={false}
+                  showHotspots={false}
                 />
               )}
             </div>

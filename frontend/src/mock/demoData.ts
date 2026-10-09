@@ -121,10 +121,10 @@ export const mockRecentActivity: MockRecentActivityItem[] = [
   {
     id: 'act-4',
     title: 'Guardian connected',
-    description: 'Primary guardian consent verified via secure OTP.',
+    description: 'Primary guardian contact registered for account protection.',
     timeAgo: '3 days ago',
     type: 'guardian',
-    status: 'verified',
+    status: 'active',
   },
 ];
 

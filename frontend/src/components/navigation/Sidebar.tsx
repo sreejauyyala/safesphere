@@ -1,18 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { 
   Home, 
   MapPin, 
   AlertTriangle, 
   Navigation, 
-  Flame, 
   Users, 
   HeartHandshake, 
   MessageSquare, 
   User, 
-  Radio,
-  ShieldCheck,
-  ShieldAlert
+  Radio, 
+  ShieldCheck, 
+  ShieldAlert, 
+  LayoutDashboard 
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import apiService from '../../services/api';
@@ -23,9 +23,10 @@ export interface SidebarProps {
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ className = '', onLinkClick }) => {
-  const { isMinor } = useAuth();
+  const navigate = useNavigate();
+  const { isMinor, userProfile } = useAuth();
   const [apiOnline, setApiOnline] = useState<boolean | null>(null);
-  const [sosActive, setSosActive] = useState(false);
+  const isAdmin = userProfile?.role === 'ORGANIZATION_ADMIN' || userProfile?.role === 'SYSTEM_ADMIN';
 
   useEffect(() => {
     apiService.getHealth()
@@ -38,7 +39,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ className = '', onLinkClick })
     { to: '/map', label: 'Safety Map', icon: MapPin },
     { to: '/report', label: 'Report Issue', icon: AlertTriangle },
     { to: '/journey', label: 'Safe Journey', icon: Navigation },
-    { to: '/safety-mode', label: 'Safe Pulse', icon: Flame },
+    { to: '/safety-mode', label: 'Safety Mode', icon: ShieldAlert },
     { to: '/trusted-circle', label: 'Trusted Circle', icon: Users },
     { 
       to: '/guardian', 
@@ -51,16 +52,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ className = '', onLinkClick })
     { to: '/profile', label: 'User Profile', icon: User },
   ];
 
-  const handleSosClick = async () => {
-    try {
-      setSosActive(true);
-      await apiService.triggerSOS();
-      alert('⚠️ SOS Signal Dispatched (Step 3 UI verification; full panic telemetry connects in Step 7)');
-    } catch {
-      alert('SOS initiated locally.');
-    } finally {
-      setTimeout(() => setSosActive(false), 3000);
-    }
+  const handleSosClick = () => {
+    navigate('/trusted-circle?sos=true');
+    if (onLinkClick) onLinkClick();
   };
 
   return (
@@ -104,6 +98,35 @@ export const Sidebar: React.FC<SidebarProps> = ({ className = '', onLinkClick })
             })}
           </nav>
         </div>
+
+        {isAdmin && (
+          <div className="pt-2">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-amber-500 px-3">
+              Operations
+            </span>
+            <nav className="mt-2 space-y-1">
+              <NavLink
+                to="/admin"
+                onClick={onLinkClick}
+                className={({ isActive }) =>
+                  `flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold transition-all ${
+                    isActive
+                      ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30 shadow-sm'
+                      : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/60'
+                  }`
+                }
+              >
+                <div className="flex items-center gap-3">
+                  <LayoutDashboard className="w-4 h-4 shrink-0 text-amber-400" />
+                  <span>Admin Operations</span>
+                </div>
+                <span className="text-[9px] px-2 py-0.5 rounded-full font-bold bg-amber-950/60 text-amber-300 border border-amber-800/60">
+                  {userProfile?.role === 'SYSTEM_ADMIN' ? 'SYS' : 'ORG'}
+                </span>
+              </NavLink>
+            </nav>
+          </div>
+        )}
       </div>
 
       {/* Bottom Section: Emergency SOS & Network Health */}
@@ -112,11 +135,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ className = '', onLinkClick })
         <button
           type="button"
           onClick={handleSosClick}
-          className={`w-full py-3 px-4 rounded-xl font-bold text-xs uppercase tracking-wider text-white shadow-lg flex items-center justify-center gap-2 transition-all duration-200 ${
-            sosActive
-              ? 'bg-red-700 animate-ping'
-              : 'bg-gradient-to-r from-red-600 via-rose-600 to-red-700 hover:from-red-500 hover:to-rose-500 glow-rose'
-          }`}
+          className="w-full py-3 px-4 rounded-xl font-bold text-xs uppercase tracking-wider text-white shadow-lg flex items-center justify-center gap-2 transition-all duration-200 bg-gradient-to-r from-red-600 via-rose-600 to-red-700 hover:from-red-500 hover:to-rose-500 glow-rose"
           aria-label="Emergency SOS Trigger"
         >
           <Radio className="w-4 h-4 animate-pulse" />

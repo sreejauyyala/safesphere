@@ -5,14 +5,19 @@ import {
   ShieldAlert, 
   CheckCircle2, 
   AlertCircle, 
-  KeyRound, 
   Trash2, 
-  ArrowRight,
-  ShieldCheck
+  Phone, 
+  Mail, 
+  Info, 
+  RotateCw,
+  UserCheck
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import apiService from '../services/api';
-import type { GuardianData, GuardianRelationship } from '../types';
+import type { 
+  GuardianData, 
+  GuardianRelationship, 
+} from '../types';
 
 export const GuardianPage: React.FC = () => {
   const navigate = useNavigate();
@@ -27,17 +32,59 @@ export const GuardianPage: React.FC = () => {
   const [guardianEmail, setGuardianEmail] = useState('');
   const [relationship, setRelationship] = useState<GuardianRelationship>('Parent');
 
-  // Verification
-  const [otpCode, setOtpCode] = useState('');
-  const [isVerifying, setIsVerifying] = useState(false);
+  // Action states
   const [isSaving, setIsSaving] = useState(false);
+
+  // Notifications
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
-  // Load active guardian
-  useEffect(() => {
-    fetchGuardianData();
-  }, []);
+  const maskPhone = (phone?: string): string => {
+    if (!phone) return 'Unknown';
+    const digits = phone.replace(/\D/g, '');
+    if (digits.length < 6) return phone;
+    const last4 = digits.slice(-4);
+    const prefix = phone.startsWith('+91') ? '+91' : phone.startsWith('+') ? phone.slice(0, 3) : '+91';
+    return `${prefix} ******${last4}`;
+  };
+
+  const maskEmail = (email?: string): string => {
+    if (!email || !email.includes('@')) return 'Unknown';
+    const [local, domain] = email.split('@');
+    return `${local[0]}******@${domain}`;
+  };
+
+  const formatUserFacingError = (err: any): string => {
+    const status = err?.status;
+    const rawMsg = String(err?.message || err || '').trim();
+    const lower = rawMsg.toLowerCase();
+
+    if (status === 404) {
+      if (lower.includes('no guardian')) {
+        return 'No guardian linked to this minor account. Add guardian details first.';
+      }
+      if (lower.includes('user profile not found')) {
+        return 'SafeSphere user profile not found. Complete user registration first.';
+      }
+    }
+
+    if (status === 422 || lower.includes('phone') || lower.includes('email') || lower.includes('format')) {
+      if (lower.includes('email')) {
+        return 'Please enter a valid guardian email address.';
+      }
+      return 'Please enter a valid guardian phone number.';
+    }
+
+    if (lower.includes('self') || lower.includes('own phone') || lower.includes('own email')) {
+      return rawMsg;
+    }
+
+    if (status === 401 || lower.includes('authentication required')) {
+      return 'Authentication required. Please sign in again.';
+    }
+
+    return rawMsg || 'Could not save guardian details. Please try again.';
+  };
 
   const fetchGuardianData = async () => {
     setLoading(true);
@@ -55,9 +102,13 @@ export const GuardianPage: React.FC = () => {
     }
   };
 
+  useEffect(() => {
+    fetchGuardianData();
+  }, []);
+
   const handleSaveGuardian = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!guardianName || !guardianPhone) {
+    if (!guardianName.trim() || !guardianPhone.trim()) {
       setErrorMsg('Please provide guardian name and contact phone number.');
       return;
     }
@@ -67,56 +118,59 @@ export const GuardianPage: React.FC = () => {
     setSuccessMsg(null);
 
     try {
-      const saved = await apiService.linkGuardian({
-        guardian_name: guardianName.trim(),
-        guardian_phone: guardianPhone.trim(),
-        guardian_email: guardianEmail.trim() || undefined,
-        relationship,
-      });
+      let saved: GuardianData;
+      if (guardian) {
+        // Update existing guardian
+        saved = await apiService.updateMyGuardian({
+          guardian_name: guardianName.trim(),
+          guardian_phone: guardianPhone.trim(),
+          guardian_email: guardianEmail.trim() || undefined,
+          relationship,
+        });
+      } else {
+        // Create new guardian connection
+        saved = await apiService.linkGuardian({
+          guardian_name: guardianName.trim(),
+          guardian_phone: guardianPhone.trim(),
+          guardian_email: guardianEmail.trim() || undefined,
+          relationship,
+        });
+      }
+
       setGuardian(saved);
+      setGuardianName(saved.guardian_name);
+      setGuardianPhone(saved.guardian_phone);
+      setGuardianEmail(saved.guardian_email || '');
+      setRelationship(saved.relationship);
+
       await refreshProfile();
-      setSuccessMsg('Guardian details saved successfully! Verification code dispatched.');
+      setSuccessMsg('Guardian details saved successfully.');
     } catch (err: any) {
-      setErrorMsg(err.message || 'Could not save guardian details.');
+      setErrorMsg(formatUserFacingError(err));
     } finally {
       setIsSaving(false);
     }
   };
 
-  const handleVerifyOTP = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!otpCode) {
-      setErrorMsg('Please enter the OTP verification code.');
-      return;
-    }
-
-    setIsVerifying(true);
-    setErrorMsg(null);
-
-    try {
-      const verified = await apiService.verifyGuardianOTP(otpCode.trim());
-      setGuardian(verified);
-      await refreshProfile();
-      setSuccessMsg('✓ Guardian verified and consent confirmed successfully!');
-    } catch (err: any) {
-      setErrorMsg(err.message || 'Invalid or expired OTP code.');
-    } finally {
-      setIsVerifying(false);
-    }
-  };
-
   const handleRemoveGuardian = async () => {
     if (!confirm('Are you sure you want to remove this guardian connection?')) return;
+    setIsSaving(true);
+    setErrorMsg(null);
+    setSuccessMsg(null);
+
     try {
       await apiService.removeMyGuardian();
       setGuardian(null);
       setGuardianName('');
       setGuardianPhone('');
       setGuardianEmail('');
+      setRelationship('Parent');
       await refreshProfile();
-      setSuccessMsg('Guardian connection removed.');
+      setSuccessMsg('Guardian connection removed successfully.');
     } catch (err: any) {
-      setErrorMsg(err.message || 'Could not remove guardian.');
+      setErrorMsg(formatUserFacingError(err));
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -129,7 +183,7 @@ export const GuardianPage: React.FC = () => {
     );
   }
 
-  // If adult user:
+  // Adult user view
   if (!isMinor && userProfile) {
     return (
       <div className="max-w-2xl mx-auto my-12 p-8 rounded-3xl glass-panel border border-slate-800 text-center space-y-4">
@@ -158,20 +212,23 @@ export const GuardianPage: React.FC = () => {
     );
   }
 
+  const maskedPhone = guardian?.masked_phone || maskPhone(guardian?.guardian_phone) || '';
+  const maskedEmail = guardian?.masked_email || (guardian?.guardian_email ? maskEmail(guardian.guardian_email) : '');
+
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
+    <div className="max-w-3xl mx-auto space-y-6 pb-12">
       {/* Page Title */}
       <div>
         <h1 className="text-2xl font-bold text-slate-100 flex items-center gap-2">
           <HeartHandshake className="w-6 h-6 text-purple-400" />
-          Guardian Connect Hub
+          Guardian Connect
         </h1>
         <p className="text-xs text-slate-400 mt-1">
-          Guardian Connect helps keep your trusted guardian informed when SafeSphere safety features are used.
+          Add your parent or legal guardian's details to your SafeSphere account.
         </p>
       </div>
 
-      {/* Minor Protection Notice Banner */}
+      {/* Minor Safeguarding Notice Banner */}
       <div className="p-4 rounded-2xl bg-purple-950/20 border border-purple-800/30 flex items-start gap-3">
         <ShieldAlert className="w-5 h-5 mt-0.5 shrink-0 text-purple-400" />
         <div className="text-xs">
@@ -179,121 +236,108 @@ export const GuardianPage: React.FC = () => {
             Minor Safeguarding Notice (Age: {userProfile?.age ?? '<18'})
           </span>
           <p className="text-purple-300/80 mt-0.5 leading-relaxed">
-            Guardian Connect helps keep your trusted guardian informed when SafeSphere safety features are used. Your guardian will receive alerts if you trigger an emergency SOS or check-in delays occur during future monitored journeys.
+            SafeSphere links emergency contacts for minor members. Your guardian is registered as your primary contact when safety features or emergency alerts are engaged.
           </p>
         </div>
       </div>
 
+      {/* Alerts */}
       {errorMsg && (
-        <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 flex items-start gap-2.5 text-xs text-rose-300">
+        <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 flex items-start gap-2.5 text-xs text-rose-300 animate-in fade-in">
           <AlertCircle className="w-4 h-4 mt-0.5 shrink-0 text-rose-400" />
           <span>{errorMsg}</span>
         </div>
       )}
 
       {successMsg && (
-        <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-start gap-2.5 text-xs text-emerald-300">
+        <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-start gap-2.5 text-xs text-emerald-300 animate-in fade-in">
           <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0 text-emerald-400" />
           <span>{successMsg}</span>
         </div>
       )}
 
-      {/* Active Guardian Status Card */}
+      {/* Active Guardian Card (if saved) */}
       {guardian && (
         <div className="p-6 rounded-3xl glass-panel border border-slate-800 space-y-4">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             <div>
-              <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700">
-                Primary Guardian Connected
-              </span>
-              <h2 className="text-lg font-bold text-slate-100 mt-1">{guardian.guardian_name}</h2>
-              <p className="text-xs text-slate-400">{guardian.relationship} &bull; {guardian.guardian_phone}</p>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700">
+                  Primary Guardian
+                </span>
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3" />
+                  {guardian.verification_status === 'VERIFIED' ? 'VERIFIED' : 'NOT_VERIFIED'}
+                </span>
+              </div>
+              <h2 className="text-lg font-bold text-slate-100 mt-1.5 flex items-center gap-2">
+                <UserCheck className="w-5 h-5 text-purple-400" />
+                {guardian.guardian_name}
+              </h2>
+              <div className="text-xs text-slate-400 flex flex-wrap items-center gap-x-2 gap-y-1 mt-1">
+                <span>{guardian.relationship}</span>
+                <span>&bull;</span>
+                <span className="font-mono flex items-center gap-1">
+                  <Phone className="w-3 h-3 text-slate-500" />
+                  {maskedPhone}
+                </span>
+                {guardian.guardian_email && (
+                  <>
+                    <span>&bull;</span>
+                    <span className="font-mono flex items-center gap-1">
+                      <Mail className="w-3 h-3 text-slate-500" />
+                      {maskedEmail}
+                    </span>
+                  </>
+                )}
+              </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
-              <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border flex items-center gap-1 ${
-                guardian.verification_status === 'VERIFIED'
-                  ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                  : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
-              }`}>
-                {guardian.verification_status === 'VERIFIED' ? <CheckCircle2 className="w-3.5 h-3.5" /> : <AlertCircle className="w-3.5 h-3.5" />}
-                {guardian.verification_status}
-              </span>
-              <button
-                type="button"
-                onClick={handleRemoveGuardian}
-                className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-slate-800 transition-colors"
-                title="Remove Guardian"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={handleRemoveGuardian}
+              disabled={isSaving}
+              className="px-3.5 py-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/20 text-xs font-semibold flex items-center gap-1.5 transition-colors disabled:opacity-50"
+              title="Remove Guardian Connection"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Remove Guardian</span>
+            </button>
           </div>
 
-          {/* OTP Verification Form if PENDING */}
-          {guardian.verification_status !== 'VERIFIED' && (
-            <div className="p-4 rounded-2xl bg-slate-900 border border-amber-500/30 space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-amber-300 flex items-center gap-1.5">
-                  <KeyRound className="w-4 h-4" />
-                  Guardian Verification Pending
-                </span>
-                <span className="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded font-mono">
-                  Dev OTP: 123456
-                </span>
-              </div>
-              <p className="text-xs text-slate-400">
-                A verification code was sent to {guardian.guardian_phone}. Enter it below to confirm guardian consent:
+          {/* Contact Verification Status Information Note */}
+          <div className="p-3.5 rounded-xl bg-slate-950/70 border border-slate-800/80 flex items-start gap-2.5 text-xs text-slate-300">
+            <Info className="w-4 h-4 mt-0.5 shrink-0 text-indigo-400" />
+            <div className="leading-relaxed">
+              <span className="font-semibold text-slate-200 block">
+                Guardian details saved — contact verification is not enabled.
+              </span>
+              <p className="text-slate-400 text-[11px] mt-0.5">
+                Saving guardian details links emergency contact records. Protected guardian notifications and safety oversight remain subject to authorization and guardian consent rules.
               </p>
-              <form onSubmit={handleVerifyOTP} className="flex gap-2">
-                <input
-                  type="text"
-                  maxLength={6}
-                  value={otpCode}
-                  onChange={(e) => setOtpCode(e.target.value)}
-                  placeholder="Enter 6-digit OTP (e.g. 123456)"
-                  className="flex-1 px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 text-sm focus:outline-none focus:border-amber-500 font-mono"
-                />
-                <button
-                  type="submit"
-                  disabled={isVerifying}
-                  className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-semibold text-xs transition-colors"
-                >
-                  {isVerifying ? 'Verifying...' : 'Verify OTP'}
-                </button>
-              </form>
             </div>
-          )}
-
-          {/* Guardian Setup Completed Confirmation */}
-          {guardian.verification_status === 'VERIFIED' && (
-            <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-300 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                <span>Guardian Setup Completed. Your account is fully protected.</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => navigate('/home')}
-                className="px-3 py-1 rounded-lg bg-emerald-600 text-white font-medium text-xs flex items-center gap-1"
-              >
-                <span>Continue</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          )}
+          </div>
         </div>
       )}
 
       {/* Guardian Details Form (Add or Update) */}
       <div className="p-6 rounded-3xl glass-card border border-slate-800 space-y-4">
-        <h2 className="text-base font-bold text-slate-200">
-          {guardian ? 'Update Guardian Details' : 'Connect Primary Guardian'}
-        </h2>
+        <div>
+          <h2 className="text-base font-bold text-slate-200">
+            {guardian ? 'Update Guardian Details' : 'Add Guardian Details'}
+          </h2>
+          <p className="text-xs text-slate-400 mt-0.5">
+            {guardian 
+              ? 'Modify your connected parent or guardian contact information below.' 
+              : 'Add your parent or legal guardian to connect them to your SafeSphere account.'}
+          </p>
+        </div>
 
         <form onSubmit={handleSaveGuardian} className="space-y-4">
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1">Guardian Full Name</label>
+            <label className="block text-xs font-medium text-slate-300 mb-1">
+              Guardian Full Name <span className="text-rose-400">*</span>
+            </label>
             <input
               type="text"
               required
@@ -306,19 +350,26 @@ export const GuardianPage: React.FC = () => {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1">Guardian Mobile Phone</label>
+              <label className="block text-xs font-medium text-slate-300 mb-1">
+                Guardian Mobile Phone <span className="text-rose-400">*</span>
+              </label>
               <input
                 type="tel"
                 required
                 value={guardianPhone}
                 onChange={(e) => setGuardianPhone(e.target.value)}
-                placeholder="+1 (555) 345-9876"
+                placeholder="+91 98765 43210 or +1 (555) 234-5678"
                 className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-100 text-sm focus:outline-none focus:border-purple-500 transition-colors"
               />
+              <span className="text-[10px] text-slate-500 block mt-1">
+                International E.164 or Indian 10-digit mobile format
+              </span>
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1">Relationship</label>
+              <label className="block text-xs font-medium text-slate-300 mb-1">
+                Relationship <span className="text-rose-400">*</span>
+              </label>
               <select
                 value={relationship}
                 onChange={(e) => setRelationship(e.target.value as GuardianRelationship)}
@@ -334,7 +385,9 @@ export const GuardianPage: React.FC = () => {
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1">Guardian Email (Optional)</label>
+            <label className="block text-xs font-medium text-slate-300 mb-1">
+              Guardian Email (Optional)
+            </label>
             <input
               type="email"
               value={guardianEmail}
@@ -344,13 +397,35 @@ export const GuardianPage: React.FC = () => {
             />
           </div>
 
-          <button
-            type="submit"
-            disabled={isSaving}
-            className="w-full py-3 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-semibold text-sm shadow-lg flex items-center justify-center gap-2 transition-all disabled:opacity-50"
-          >
-            {isSaving ? 'Saving Guardian...' : guardian ? 'Update Guardian Details' : 'Save Guardian & Send Code'}
-          </button>
+          <div className="pt-2 flex flex-col sm:flex-row items-center gap-3">
+            <button
+              type="submit"
+              disabled={isSaving}
+              className="w-full sm:flex-1 py-3 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-semibold text-sm shadow-lg flex items-center justify-center gap-2 transition-all disabled:opacity-50"
+            >
+              {isSaving ? (
+                <>
+                  <RotateCw className="w-4 h-4 animate-spin" />
+                  <span>Saving Guardian Details...</span>
+                </>
+              ) : guardian ? (
+                'Update Guardian Details'
+              ) : (
+                'Save Guardian Details'
+              )}
+            </button>
+            {guardian && (
+              <button
+                type="button"
+                onClick={handleRemoveGuardian}
+                disabled={isSaving}
+                className="w-full sm:w-auto px-5 py-3 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/20 font-semibold text-sm flex items-center justify-center gap-2 transition-all disabled:opacity-50"
+              >
+                <Trash2 className="w-4 h-4" />
+                <span>Remove Guardian</span>
+              </button>
+            )}
+          </div>
         </form>
       </div>
     </div>

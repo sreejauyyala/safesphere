@@ -15,7 +15,7 @@ export const QuickActionCard: React.FC<QuickActionCardProps> = ({ className = ''
     if (onSosClick) {
       onSosClick();
     } else {
-      navigate('/safety-mode');
+      navigate('/trusted-circle?sos=true');
     }
   };
 
@@ -41,7 +41,7 @@ export const QuickActionCard: React.FC<QuickActionCardProps> = ({ className = ''
     {
       title: 'I Feel Unsafe',
       description: 'Activate silent background vigilance & pulse',
-      to: '/safety-mode',
+      to: '/safety-mode?activate=true',
       icon: ShieldCheck,
       color: 'text-rose-400',
       bg: 'bg-rose-500/10 border-rose-500/20 group-hover:bg-rose-500/20',
@@ -106,7 +106,7 @@ export const QuickActionCard: React.FC<QuickActionCardProps> = ({ className = ''
               Instant SOS Signal
             </h4>
             <p className="text-[11px] text-red-300/80 mt-0.5">
-              Broadcasts urgent distress beacon to Trusted Circle (Connects in Step 7)
+              Broadcasts urgent distress beacon to verified Trusted Circle & Guardians
             </p>
           </div>
         </button>

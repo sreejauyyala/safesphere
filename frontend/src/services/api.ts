@@ -7,11 +7,16 @@ import type {
   HelpPoint, 
   UserProfile, 
   GuardianData, 
-  GuardianRelationship 
+  GuardianRelationship,
 } from '../types';
 
-// Read API URL from Vite environment variables with fallback
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
+// Read API URL from Vite environment variables with automatic /api/v1 normalization
+export const getApiBaseUrl = (): string => {
+  const raw = (import.meta.env.VITE_API_URL || 'http://localhost:8000').trim().replace(/\/+$/, '');
+  return raw.endsWith('/api/v1') ? raw : `${raw}/api/v1`;
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 export interface UserRegisterPayload {
   firebase_uid: string;
@@ -69,15 +74,39 @@ class ApiService {
       (error) => Promise.reject(error)
     );
 
-    // Response interceptor for consistent error normalization
+    // Response interceptor for consistent, user-friendly error normalization
     this.client.interceptors.response.use(
       (response) => response,
       (error) => {
-        const message = 
-          error.response?.data?.detail || 
-          error.response?.data?.message || 
-          error.message || 
-          'Network request failed';
+        let message = 'An unexpected error occurred. Please try again.';
+
+        if (!error.response) {
+          // Connection refused, network offline, or backend server not running
+          message = 'Unable to connect to the SafeSphere server. Please ensure the backend server is running.';
+        } else if (error.response?.status === 404 && (!error.response?.data?.detail || String(error.response?.data?.detail).trim().toLowerCase() === 'not found')) {
+          message = 'The verification endpoint could not be found. Please contact the administrator.';
+        } else if (error.response?.data?.detail) {
+          const detail = error.response.data.detail;
+          if (typeof detail === 'string') {
+            message = detail;
+          } else if (Array.isArray(detail)) {
+            // Format FastAPI Pydantic 422 validation errors into human-readable strings
+            message = detail
+              .map((item: any) => {
+                const field = Array.isArray(item.loc) ? item.loc.filter((l: any) => l !== 'body').join('.') : '';
+                const msg = item.msg ? item.msg.replace(/^Value error,\s*/i, '') : 'Invalid value';
+                return field ? `${field}: ${msg}` : msg;
+              })
+              .join(' | ');
+          } else if (typeof detail === 'object') {
+            message = detail.message || JSON.stringify(detail);
+          }
+        } else if (error.response?.data?.message) {
+          message = error.response.data.message;
+        } else if (error.message && error.message !== 'Network Error') {
+          message = error.message;
+        }
+
         const customError = {
           message,
           status: error.response?.status,
@@ -136,13 +165,6 @@ class ApiService {
     return res.data;
   }
 
-  async verifyGuardianOTP(otpCode: string): Promise<GuardianData> {
-    const res: AxiosResponse<GuardianData> = await this.client.post('/guardians/verify', {
-      otp_code: otpCode,
-    });
-    return res.data;
-  }
-
   // --- Safety Reports ---
   async getSafetyReports(): Promise<SafetyReport[]> {
     const res = await this.client.get('/safety-reports');
@@ -174,16 +196,26 @@ class ApiService {
     return res.data;
   }
 
-  // --- Step 4: Journey & Live Tracking Endpoints ---
-  async createJourney(data: {
-    destination_name: string;
-    title?: string;
-    start_latitude: number;
-    start_longitude: number;
-    destination_latitude?: number | null;
-    destination_longitude?: number | null;
-  }): Promise<any> {
+  // --- Step 4 & 10: Journey & Safety-Aware Routing Endpoints ---
+  async createJourney(data: import('../types').JourneyCreatePayload): Promise<any> {
     const res = await this.client.post('/journeys', data);
+    return res.data;
+  }
+
+  async getRouteAlternatives(
+    data: import('../types').RouteAlternativesRequest
+  ): Promise<import('../types').RouteAlternativesResponse> {
+    const res = await this.client.post('/routes/alternatives', data);
+    return res.data;
+  }
+
+  async assessCustomRouteSafety(data: any): Promise<any> {
+    const res = await this.client.post('/routes/assess-safety', data);
+    return res.data;
+  }
+
+  async getRoutingProviderInfo(): Promise<import('../types').RouteProviderInfo> {
+    const res = await this.client.get('/routes/provider-info');
     return res.data;
   }
 
@@ -228,6 +260,10 @@ class ApiService {
   async getJourneyLocationPoints(journeyId: string): Promise<any[]> {
     const res = await this.client.get(`/journeys/${journeyId}/locations`);
     return res.data || [];
+  }
+
+  getClient(): AxiosInstance {
+    return this.client;
   }
 }
 

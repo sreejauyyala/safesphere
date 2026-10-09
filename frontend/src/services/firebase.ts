@@ -63,10 +63,27 @@ export const setStoredDevSession = (session: AuthSession | null) => {
  */
 export const registerWithFirebaseAuth = async (email: string, password: string): Promise<string> => {
   if (isFirebaseConfigured()) {
-    const userCred = await createUserWithEmailAndPassword(auth, email, password);
-    const token = await userCred.user.getIdToken();
-    localStorage.setItem('safesphere_auth_token', token);
-    return userCred.user.uid;
+    try {
+      const userCred = await createUserWithEmailAndPassword(auth, email, password);
+      const token = await userCred.user.getIdToken();
+      localStorage.setItem('safesphere_auth_token', token);
+      return userCred.user.uid;
+    } catch (err: any) {
+      if (err?.code === 'auth/email-already-in-use') {
+        // Safe recovery: If Firebase account already exists (e.g. from a prior step where profile
+        // creation failed or was interrupted), sign in with credentials to obtain the ID token and UID
+        try {
+          const userCred = await signInWithEmailAndPassword(auth, email, password);
+          const token = await userCred.user.getIdToken();
+          localStorage.setItem('safesphere_auth_token', token);
+          return userCred.user.uid;
+        } catch {
+          // If sign-in fails (e.g., incorrect password), propagate the original email-already-in-use error
+          throw err;
+        }
+      }
+      throw err;
+    }
   } else {
     // Development / Hackathon Mock Auth Mode
     const mockUid = 'uid_' + Math.abs(hashCode(email));

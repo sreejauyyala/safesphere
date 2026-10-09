@@ -40,3 +40,38 @@
 .glow-emerald {
   box-shadow: 0 0 25px -5px rgba(16, 185, 129, 0.3);
 }
+
+/* Leaflet Container & Tile Overrides for Tailwind CSS compatibility */
+.leaflet-container {
+  width: 100% !important;
+  height: 100% !important;
+  background-color: #0b0f19 !important;
+  z-index: 1;
+  font-family: var(--font-sans);
+}
+
+.leaflet-container img {
+  max-width: none !important;
+  max-height: none !important;
+}
+
+.leaflet-tile-pane {
+  z-index: 200 !important;
+  opacity: 1 !important;
+}
+
+.leaflet-tile {
+  visibility: inherit !important;
+  opacity: 1 !important;
+  max-width: none !important;
+}
+
+.leaflet-pane {
+  z-index: 400;
+}
+
+.leaflet-top,
+.leaflet-bottom {
+  z-index: 500;
+}
+

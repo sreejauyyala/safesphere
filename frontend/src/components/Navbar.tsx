@@ -8,7 +8,6 @@ import {
   Users, 
   HeartHandshake, 
   LayoutDashboard, 
-  Flame,
   Radio,
   LogOut,
   ShieldAlert
@@ -22,7 +21,6 @@ export const Navbar: React.FC = () => {
   const { userProfile, isAuthenticated, isMinor, logout } = useAuth();
 
   const [apiOnline, setApiOnline] = useState<boolean | null>(null);
-  const [sosTriggered, setSosTriggered] = useState<boolean>(false);
 
   useEffect(() => {
     // Check backend health status
@@ -31,16 +29,8 @@ export const Navbar: React.FC = () => {
       .catch(() => setApiOnline(false));
   }, []);
 
-  const handleSosClick = async () => {
-    try {
-      setSosTriggered(true);
-      await apiService.triggerSOS();
-      alert('⚠️ SOS Signal Dispatched! (Foundation test trigger verified with backend)');
-    } catch {
-      alert('SOS triggered locally. Check backend connectivity.');
-    } finally {
-      setTimeout(() => setSosTriggered(false), 3000);
-    }
+  const handleSosClick = () => {
+    navigate('/trusted-circle?sos=true');
   };
 
   const handleSignOut = async () => {
@@ -53,7 +43,7 @@ export const Navbar: React.FC = () => {
     { to: '/map', label: 'Safety Map', icon: MapPin },
     { to: '/report', label: 'Report', icon: AlertTriangle },
     { to: '/journey', label: 'Journey', icon: Navigation },
-    { to: '/safety-mode', label: 'Safe Pulse', icon: Flame },
+    { to: '/safety-mode', label: 'Safety Mode', icon: ShieldAlert },
     { to: '/trusted-circle', label: 'Trusted Circle', icon: Users },
     { to: '/guardian', label: 'Guardian', icon: HeartHandshake },
     { to: '/admin', label: 'Admin', icon: LayoutDashboard },
@@ -171,11 +161,7 @@ export const Navbar: React.FC = () => {
             <button
               id="sos-trigger-btn"
               onClick={handleSosClick}
-              className={`flex items-center space-x-1.5 px-3.5 py-1.5 rounded-lg font-bold text-xs uppercase tracking-wider text-white shadow-lg transition-all duration-200 ${
-                sosTriggered
-                  ? 'bg-red-700 animate-ping'
-                  : 'bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 glow-rose'
-              }`}
+              className="flex items-center space-x-1.5 px-3.5 py-1.5 rounded-lg font-bold text-xs uppercase tracking-wider text-white shadow-lg transition-all duration-200 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 glow-rose"
             >
               <Radio className="w-4 h-4" />
               <span>SOS</span>

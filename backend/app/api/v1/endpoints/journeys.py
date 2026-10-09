@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timezone
 import math
 from typing import List, Optional
@@ -5,10 +6,19 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+logger = logging.getLogger("safesphere.journeys")
+
+# pyrefly: ignore [missing-import]
 from app.core.database import get_db
+# pyrefly: ignore [missing-import]
 from app.core.security import get_current_user
+# pyrefly: ignore [missing-import]
 from app.models.user import User
+# pyrefly: ignore [missing-import]
 from app.models.journey import Journey, JourneyLocationPoint
+# pyrefly: ignore [missing-import]
+from app.models.journey_sharing import JourneySharingSession
+# pyrefly: ignore [missing-import]
 from app.schemas.journey import (
     JourneyCreateRequest,
     JourneyLocationUpdateRequest,
@@ -16,6 +26,13 @@ from app.schemas.journey import (
     JourneyResponse,
     JourneySummaryResponse,
 )
+# pyrefly: ignore [missing-import]
+from app.schemas.community_feedback import (
+    JourneyFeedbackCreate,
+    CommunityFeedbackResponse,
+)
+from app.services.notification_service import notification_service
+from app.services.feedback_service import feedback_service
 
 router = APIRouter()
 
@@ -36,7 +53,7 @@ def calculate_haversine_distance_km(lat1: float, lon1: float, lat2: float, lon2:
 
 
 @router.post("", response_model=JourneyResponse, status_code=status.HTTP_201_CREATED)
-def create_journey(
+async def create_journey(
     payload: JourneyCreateRequest,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -44,6 +61,7 @@ def create_journey(
     """
     Initiates a new SafeSphere journey for the authenticated user.
     Enforces the single active journey constraint (prevents multiple active journeys).
+    Dispatches journey start alerts to authorized trusted contacts and verified guardians.
     """
     existing_active = (
         db.query(Journey)
@@ -74,6 +92,14 @@ def create_journey(
         last_longitude=payload.start_longitude,
         last_location_update=now,
         distance_travelled=0.0,
+        selected_route_id=payload.selected_route_id,
+        route_provider=payload.route_provider,
+        route_geometry=payload.route_geometry,
+        planned_distance_m=payload.planned_distance_m,
+        planned_duration_seconds=payload.planned_duration_seconds,
+        estimated_risk_level=payload.estimated_risk_level,
+        route_data_coverage=payload.route_data_coverage,
+        route_assessed_at=payload.route_assessed_at,
     )
     db.add(journey)
     db.flush()
@@ -89,6 +115,12 @@ def create_journey(
     db.add(initial_point)
     db.commit()
     db.refresh(journey)
+
+    # Dispatch journey-start notification
+    try:
+        await notification_service.notify_journey_started(journey, current_user, db)
+    except Exception as e:
+        logger.error(f"Error dispatching journey start notification: {e}")
 
     return journey
 
@@ -265,14 +297,15 @@ def resume_journey(
 
 
 @router.post("/{journey_id}/end", response_model=JourneySummaryResponse)
-def end_journey(
+async def end_journey(
     journey_id: UUID,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """
     Completes and finalizes an active or paused journey.
-    Calculates duration, seals status as COMPLETED, and returns summary metrics.
+    Calculates duration, seals status as COMPLETED, revokes active sharing sessions,
+    and dispatches journey completion alerts.
     """
     journey = db.query(Journey).filter(Journey.id == journey_id).first()
     if not journey:
@@ -287,6 +320,19 @@ def end_journey(
         journey.ended_at = now
         db.commit()
         db.refresh(journey)
+
+        # Revoke any active live-sharing sessions for this journey
+        db.query(JourneySharingSession).filter(
+            JourneySharingSession.journey_id == journey.id,
+            JourneySharingSession.is_active == True
+        ).update({"is_active": False, "revoked_at": now})
+        db.commit()
+
+        # Dispatch journey-end notification
+        try:
+            await notification_service.notify_journey_completed(journey, current_user, db)
+        except Exception as e:
+            logger.error(f"Error dispatching journey completion notification: {e}")
 
     started = journey.started_at
     if started.tzinfo is None:
@@ -333,3 +379,39 @@ def get_journey_location_points(
         .all()
     )
     return points
+
+
+@router.post("/{journey_id}/feedback", response_model=CommunityFeedbackResponse, status_code=status.HTTP_201_CREATED)
+def submit_journey_feedback_endpoint(
+    journey_id: UUID,
+    payload: JourneyFeedbackCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Submits user experience and safety info usefulness feedback for a completed journey.
+    Strictly enforces journey ownership.
+    """
+    return feedback_service.submit_journey_feedback(
+        db=db,
+        current_user=current_user,
+        journey_id=journey_id,
+        payload=payload,
+    )
+
+
+@router.get("/{journey_id}/feedback/me", response_model=Optional[CommunityFeedbackResponse])
+def get_my_journey_feedback_endpoint(
+    journey_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Retrieves the authenticated user's feedback for their own journey.
+    """
+    return feedback_service.get_journey_feedback(
+        db=db,
+        current_user=current_user,
+        journey_id=journey_id,
+    )
+

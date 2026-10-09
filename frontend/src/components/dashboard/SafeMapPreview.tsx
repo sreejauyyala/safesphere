@@ -1,47 +1,43 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Map, MapPin, ShieldAlert, Sparkles, ArrowRight } from 'lucide-react';
+import { Map, ArrowRight } from 'lucide-react';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
 import { useLocation } from '../../contexts/LocationContext';
-
-export interface MapMarkerPreview {
-  id: string;
-  lat: number;
-  lng: number;
-  title: string;
-  type: 'haven' | 'hazard' | 'user';
-}
+import mapService from '../../services/mapService';
+import type { MapSafetyReport, MapHelpPoint } from '../../types';
+import SafeSphereMap from '../map/SafeSphereMap';
 
 export interface SafeMapPreviewProps {
-  userLocation?: { lat: number; lng: number } | null;
-  markers?: MapMarkerPreview[];
-  safetyZones?: Array<{ id: string; name: string; score: number }>;
-  routes?: Array<{ id: string; name: string }>;
-  onOpenMap?: () => void;
   className?: string;
 }
 
-export const SafeMapPreview: React.FC<SafeMapPreviewProps> = ({
-  userLocation,
-  markers = [],
-  safetyZones = [],
-  routes = [],
-  onOpenMap,
-  className = '',
-}) => {
+export const SafeMapPreview: React.FC<SafeMapPreviewProps> = ({ className = '' }) => {
   const navigate = useNavigate();
   const { currentLocation } = useLocation();
+  const [reports, setReports] = useState<MapSafetyReport[]>([]);
+  const [helpPoints, setHelpPoints] = useState<MapHelpPoint[]>([]);
 
-  const effectiveLat = userLocation?.lat ?? currentLocation?.latitude;
-  const effectiveLng = userLocation?.lng ?? currentLocation?.longitude;
+  useEffect(() => {
+    let isMounted = true;
+    mapService
+      .getConsolidatedMapData(currentLocation?.latitude, currentLocation?.longitude, 10000)
+      .then((data) => {
+        if (isMounted) {
+          // Take top relevant reports and help points for preview
+          setReports((data.reports || []).slice(0, 4));
+          setHelpPoints((data.help_points || []).slice(0, 3));
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      isMounted = false;
+    };
+  }, [currentLocation]);
 
   const handleOpen = () => {
-    if (onOpenMap) {
-      onOpenMap();
-    } else {
-      navigate('/map');
-    }
+    navigate('/map');
   };
 
   return (
@@ -58,56 +54,28 @@ export const SafeMapPreview: React.FC<SafeMapPreviewProps> = ({
           onClick={handleOpen}
           rightIcon={<ArrowRight className="w-3.5 h-3.5" />}
         >
-          Open Full Map
+          Open Safety Map
         </Button>
       }
     >
-      {/* Visual Map Canvas Placeholder */}
-      <div className="relative h-48 sm:h-56 w-full rounded-2xl overflow-hidden border border-slate-800 bg-slate-950/90 flex items-center justify-center">
-        {/* Subtle Map Grid lines */}
-        <div 
-          className="absolute inset-0 opacity-20 pointer-events-none"
-          style={{
-            backgroundImage: `radial-gradient(circle at 1px 1px, rgba(255,255,255,0.15) 1px, transparent 0)`,
-            backgroundSize: '24px 24px',
-          }}
+      <div className="relative rounded-2xl overflow-hidden border border-slate-800 h-56 w-full">
+        <SafeSphereMap
+          userLocation={currentLocation}
+          reports={reports}
+          helpPoints={helpPoints}
+          showHotspots={false}
+          className="h-full w-full min-h-[220px]"
         />
 
-        {/* Ambient Radar Scan Ring */}
-        <div className="absolute w-36 h-36 rounded-full border border-indigo-500/30 animate-ping opacity-25 pointer-events-none" />
-        <div className="absolute w-60 h-60 rounded-full border border-indigo-500/20 pointer-events-none" />
-
-        {/* Simulated Map Markers */}
-        <div className="absolute top-10 left-12 flex items-center gap-1.5 px-2 py-1 rounded-lg bg-slate-900/90 border border-slate-700 text-[10px] text-slate-300 shadow">
-          <span className="w-2 h-2 rounded-full bg-emerald-400" />
-          <span>24/7 Haven (Hospital)</span>
-        </div>
-
-        <div className="absolute bottom-12 right-10 flex items-center gap-1.5 px-2 py-1 rounded-lg bg-slate-900/90 border border-slate-700 text-[10px] text-slate-300 shadow">
-          <ShieldAlert className="w-3.5 h-3.5 text-amber-400" />
-          <span>Reported Lighting Issue</span>
-        </div>
-
-        {/* Center Target (User) */}
-        <div className="relative z-10 flex flex-col items-center">
-          <div className="w-8 h-8 rounded-full bg-rose-600/20 border-2 border-rose-500 flex items-center justify-center shadow-lg shadow-rose-900/40">
-            <MapPin className="w-4 h-4 text-rose-400" />
-          </div>
-          <span className="text-[10px] font-bold text-slate-200 mt-1 px-2 py-0.5 rounded-full bg-slate-900/90 border border-slate-800">
-            {effectiveLat && effectiveLng ? `${effectiveLat.toFixed(3)}, ${effectiveLng.toFixed(3)}` : 'Your Approximate Sector'}
-          </span>
-        </div>
-
-        {/* Bottom Banner */}
-        <div className="absolute bottom-2 left-2 right-2 px-3 py-1.5 rounded-xl bg-slate-900/80 backdrop-blur border border-slate-800 text-[10px] text-slate-400 flex items-center justify-between">
-          <span className="flex items-center gap-1">
-            <Sparkles className="w-3 h-3 text-indigo-400" />
-            Interactive Leaflet tiles connect in full map view
-          </span>
-          <span className="text-slate-500 hidden sm:inline">
-            Active: {markers.length || 3} pins &bull; {routes.length || 1} path &bull; {safetyZones.length || 3} zones
-          </span>
-        </div>
+        {/* Floating Open Full Map Badge */}
+        <button
+          type="button"
+          onClick={handleOpen}
+          className="absolute bottom-3 right-3 z-[1000] px-3 py-1.5 rounded-xl bg-slate-900/95 hover:bg-slate-800 text-white border border-slate-700/80 shadow-xl backdrop-blur-md text-xs font-semibold flex items-center gap-1.5 transition active:scale-95"
+        >
+          <span>Open Full Map</span>
+          <ArrowRight className="w-3.5 h-3.5" />
+        </button>
       </div>
     </Card>
   );

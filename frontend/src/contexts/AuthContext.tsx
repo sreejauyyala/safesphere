@@ -80,7 +80,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const register = async (data: RegisterFormData): Promise<UserProfile> => {
     setIsLoading(true);
     try {
-      // 1. Create Firebase Auth credential
+      // 1. Create or recover Firebase Auth credential
       const firebaseUid = await registerWithFirebaseAuth(data.email, data.password);
 
       // 2. Post registration payload to FastAPI PostgreSQL backend
@@ -95,6 +95,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       setUserProfile(profile);
       return profile;
+    } catch (err) {
+      // Safe recovery: clear stored token if backend profile creation failed
+      localStorage.removeItem('safesphere_auth_token');
+      setUserProfile(null);
+      throw err;
     } finally {
       setIsLoading(false);
     }
